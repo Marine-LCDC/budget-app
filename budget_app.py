@@ -8,220 +8,218 @@ st.set_page_config(
     page_title="Mon Simulateur Budgétaire",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- STYLE CSS PERSONNALISÉ (Pour faire "Pro" dans l'iframe Systeme.io) ---
+# --- STYLE CSS (Pour l'intégration Systeme.io) ---
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
-            .block-container {padding-top: 2rem; padding-bottom: 2rem;}
+            .block-container {padding-top: 1rem; padding-bottom: 2rem;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# --- DONNÉES INITIALES (Basées sur votre CSV) ---
-# Nous définissons ici les catégories par défaut pour que l'utilisateur n'ait plus qu'à remplir
+# --- DONNÉES INITIALES ---
 DEFAULT_EXPENSES = [
     {"Catégorie": "Foyer", "Poste": "Loyer résidence principale", "Mensuel": 0.0},
     {"Catégorie": "Foyer", "Poste": "Assurance Habitation", "Mensuel": 0.0},
     {"Catégorie": "Foyer", "Poste": "Electricité / Eau", "Mensuel": 0.0},
-    {"Catégorie": "Foyer", "Poste": "Télécommunication (Internet/Mobile)", "Mensuel": 0.0},
+    {"Catégorie": "Foyer", "Poste": "Internet & Mobile", "Mensuel": 0.0},
     {"Catégorie": "Vie Courante", "Poste": "Dépenses alimentaires", "Mensuel": 0.0},
-    {"Catégorie": "Vie Courante", "Poste": "Dépenses vestimentaires", "Mensuel": 0.0},
+    {"Catégorie": "Vie Courante", "Poste": "Vêtements & Shopping", "Mensuel": 0.0},
     {"Catégorie": "Vie Courante", "Poste": "Entretien (ménage, jardin)", "Mensuel": 0.0},
     {"Catégorie": "Enfants", "Poste": "Scolarité / Garde", "Mensuel": 0.0},
     {"Catégorie": "Loisirs", "Poste": "Sport / Musique", "Mensuel": 0.0},
-    {"Catégorie": "Loisirs", "Poste": "Ciné / Restaurant / Bar", "Mensuel": 0.0},
-    {"Catégorie": "Loisirs", "Poste": "Voyages / Vacances (lissé au mois)", "Mensuel": 0.0},
-    {"Catégorie": "Loisirs", "Poste": "Addiction (Cigarette, Jeux...)", "Mensuel": 0.0},
-    {"Catégorie": "Transport", "Poste": "Entretien véhicule / Carburant", "Mensuel": 0.0},
-    {"Catégorie": "Transport", "Poste": "Abonnements / Assurance Auto", "Mensuel": 0.0},
-    {"Catégorie": "Animaux", "Poste": "Alimentation / Véto", "Mensuel": 0.0},
-    {"Catégorie": "Banque & Impôts", "Poste": "Remboursement Prêts Immo", "Mensuel": 0.0},
-    {"Catégorie": "Banque & Impôts", "Poste": "Impôt sur le revenu (mensualisé)", "Mensuel": 0.0},
-    {"Catégorie": "Banque & Impôts", "Poste": "Taxes locales (Foncière/Habitation)", "Mensuel": 0.0},
+    {"Catégorie": "Loisirs", "Poste": "Resto / Sorties", "Mensuel": 0.0},
+    {"Catégorie": "Loisirs", "Poste": "Voyages (lissé mensuel)", "Mensuel": 0.0},
+    {"Catégorie": "Loisirs", "Poste": "Plaisirs / Jeux / Tabac", "Mensuel": 0.0},
+    {"Catégorie": "Transport", "Poste": "Carburant / Péage", "Mensuel": 0.0},
+    {"Catégorie": "Transport", "Poste": "Assurance / Entretien Auto", "Mensuel": 0.0},
+    {"Catégorie": "Transport", "Poste": "Transports en commun", "Mensuel": 0.0},
+    {"Catégorie": "Banque", "Poste": "Crédit Immo / Loyer", "Mensuel": 0.0},
+    {"Catégorie": "Banque", "Poste": "Crédits Conso / Auto", "Mensuel": 0.0},
+    {"Catégorie": "Impôts", "Poste": "Impôt sur le revenu (mensuel)", "Mensuel": 0.0},
 ]
 
 DEFAULT_INCOME = [
     {"Type": "Travail", "Source": "Salaires (Net)", "Mensuel": 0.0},
-    {"Type": "Travail", "Source": "Bénéfices (BIC/BNC/BA)", "Mensuel": 0.0},
-    {"Type": "Travail", "Source": "Indemnités / Primes", "Mensuel": 0.0},
-    {"Type": "Patrimoine", "Source": "Revenus Fonciers (Loyers perçus)", "Mensuel": 0.0},
-    {"Type": "Patrimoine", "Source": "Dividendes / Intérêts", "Mensuel": 0.0},
-    {"Type": "Aides & Divers", "Source": "Pensions (Retraite/Alimentaire)", "Mensuel": 0.0},
-    {"Type": "Aides & Divers", "Source": "Aides de l'Etat (CAF, APL, Chômage)", "Mensuel": 0.0},
-    {"Type": "Aides & Divers", "Source": "Autres revenus", "Mensuel": 0.0},
+    {"Type": "Travail", "Source": "Primes / Bonus", "Mensuel": 0.0},
+    {"Type": "Travail", "Source": "Bénéfices (Indépendants)", "Mensuel": 0.0},
+    {"Type": "Patrimoine", "Source": "Loyers perçus", "Mensuel": 0.0},
+    {"Type": "Aides", "Source": "CAF / APL", "Mensuel": 0.0},
+    {"Type": "Aides", "Source": "Chômage / Retraite", "Mensuel": 0.0},
+    {"Type": "Autre", "Source": "Autre revenus", "Mensuel": 0.0},
 ]
 
-# --- FONCTIONS UTILITAIRES ---
+# --- FONCTIONS ---
 def load_data():
-    """Initialise les données dans la session si elles n'existent pas encore."""
     if 'df_expenses' not in st.session_state:
         st.session_state.df_expenses = pd.DataFrame(DEFAULT_EXPENSES)
     if 'df_income' not in st.session_state:
         st.session_state.df_income = pd.DataFrame(DEFAULT_INCOME)
 
-def calculate_totals(df):
-    """Calcule les totaux mensuels et annuels."""
-    total_monthly = df["Mensuel"].sum()
-    total_annual = total_monthly * 12
-    return total_monthly, total_annual
+def calculate_weights(df):
+    """Ajoute une colonne de pourcentage au dataframe."""
+    total = df["Mensuel"].sum()
+    if total > 0:
+        # On calcule le ratio (ex: 0.30 pour 30%)
+        df["Poids"] = df["Mensuel"] / total
+    else:
+        df["Poids"] = 0.0
+    return df
 
 def convert_df_to_csv(df_inc, df_exp, balance_m, balance_a):
-    """Prépare un fichier CSV pour l'export complet."""
     output = io.StringIO()
     output.write("--- RAPPORT BUDGETAIRE ---\n\n")
-    output.write(f"Trésorerie Mensuelle Nette;{balance_m}\n")
-    output.write(f"Trésorerie Annuelle Nette;{balance_a}\n\n")
-    
+    output.write(f"Reste a vivre Mensuel;{balance_m}\n")
+    output.write(f"Reste a vivre Annuel;{balance_a}\n\n")
     output.write("--- REVENUS ---\n")
     df_inc.to_csv(output, index=False, sep=";")
-    
     output.write("\n--- DEPENSES ---\n")
     df_exp.to_csv(output, index=False, sep=";")
-    
     return output.getvalue().encode('utf-8')
 
-# --- MAIN APP ---
+# --- MAIN ---
 def main():
     load_data()
 
-    st.title("📊 Mon Tableau de Bord Budgétaire")
-    st.markdown("Remplissez les cases ci-dessous pour analyser votre situation financière.")
+    st.title("📊 Calculatrice Budgétaire & Analyse")
+    st.caption("Remplissez vos montants pour voir apparaître l'analyse de votre situation.")
 
-    # --- SECTION DE SAISIE (Layout 2 colonnes) ---
-    col1, col2 = st.columns([1, 1], gap="large")
+    # 1. Préparer les données avec les pourcentages à jour
+    # On recalcule les poids AVANT d'afficher le tableau
+    st.session_state.df_expenses = calculate_weights(st.session_state.df_expenses)
+
+    col1, col2 = st.columns([1.3, 1], gap="large")
 
     with col1:
         st.subheader("💸 Vos Dépenses")
-        st.info("Double-cliquez sur les montants pour les modifier.")
+        st.info("💡 Identifiez les barres rouges les plus longues : ce sont vos postes prioritaires.")
         
-        # Éditeur de données interactif pour les Dépenses
+        # Le tableau magique avec la colonne Poids
         edited_expenses = st.data_editor(
             st.session_state.df_expenses,
             column_config={
                 "Mensuel": st.column_config.NumberColumn(
-                    "Montant Mensuel (€)",
-                    help="Entrez le coût mensuel estimé",
+                    "Montant (€)",
                     min_value=0,
-                    format="%.2f €"
+                    step=10,
+                    format="%.0f €",
+                    width="small"
                 ),
-                "Catégorie": st.column_config.TextColumn("Catégorie", disabled=True),
-                "Poste": st.column_config.TextColumn("Poste de dépense", disabled=True),
+                "Poids": st.column_config.ProgressColumn(
+                    "Poids dans le budget",
+                    help="Ce que cette dépense représente par rapport au total des dépenses",
+                    format="%.1f %%", # Affiche en pourcentage
+                    min_value=0,
+                    max_value=1,     # 1 = 100%
+                    width="medium"
+                ),
+                "Catégorie": st.column_config.TextColumn("Catégorie", disabled=True, width="small"),
+                "Poste": st.column_config.TextColumn("Poste", disabled=True),
             },
             hide_index=True,
             use_container_width=True,
+            num_rows="fixed",
             key="editor_expenses"
         )
-        # Calcul en temps réel
-        total_exp_m, total_exp_a = calculate_totals(edited_expenses)
-        st.metric(label="Total Dépenses / Mois", value=f"{total_exp_m:,.2f} €", delta=f"-{total_exp_a:,.2f} € / an", delta_color="inverse")
+        
+        # Mise à jour du state avec les nouvelles valeurs entrées par l'utilisateur
+        # IMPORTANT : On ne garde que les colonnes originales pour éviter de dupliquer la colonne Poids au prochain tour
+        st.session_state.df_expenses = edited_expenses[["Catégorie", "Poste", "Mensuel"]]
+        
+        total_exp = edited_expenses["Mensuel"].sum()
 
     with col2:
         st.subheader("💰 Vos Revenus")
-        st.info("Indiquez vos rentrées d'argent nettes.")
         
-        # Éditeur de données interactif pour les Revenus
         edited_income = st.data_editor(
             st.session_state.df_income,
             column_config={
                 "Mensuel": st.column_config.NumberColumn(
-                    "Montant Mensuel (€)",
-                    help="Entrez le revenu mensuel net",
+                    "Montant (€)",
                     min_value=0,
-                    format="%.2f €"
+                    step=10,
+                    format="%.0f €"
                 ),
                 "Type": st.column_config.TextColumn("Type", disabled=True),
-                "Source": st.column_config.TextColumn("Source de revenu", disabled=True),
+                "Source": st.column_config.TextColumn("Source", disabled=True),
             },
             hide_index=True,
             use_container_width=True,
+            num_rows="fixed",
             key="editor_income"
         )
-        # Calcul en temps réel
-        total_inc_m, total_inc_a = calculate_totals(edited_income)
-        st.metric(label="Total Revenus / Mois", value=f"{total_inc_m:,.2f} €", delta=f"+{total_inc_a:,.2f} € / an")
+        st.session_state.df_income = edited_income
+        total_inc = edited_income["Mensuel"].sum()
 
+        # --- CARTES DE SYNTHÈSE ---
+        st.markdown("---")
+        st.write("### 🏁 Résultat Immédiat")
+        
+        cashflow = total_inc - total_exp
+        
+        # Affichage dynamique des métriques
+        m1, m2 = st.columns(2)
+        m1.metric("Total Dépenses", f"{total_exp:,.0f} €")
+        m2.metric("Total Revenus", f"{total_inc:,.0f} €")
+        
+        st.metric("Reste à vivre (Mensuel)", f"{cashflow:,.2f} €", 
+                 delta="⚠️ DANGER" if cashflow < 0 else "✅ SAIN",
+                 delta_color="inverse" if cashflow < 0 else "normal")
+
+    # --- SECTION COACHING ---
     st.markdown("---")
+    st.header("🧠 L'Analyse du Coach")
 
-    # --- SECTION RÉSULTATS (KPIs & Coach) ---
-    
-    # Calcul du Reste à Vivre (Trésorerie)
-    cashflow_m = total_inc_m - total_exp_m
-    cashflow_a = total_inc_a - total_exp_a
+    if total_exp > 0:
+        # Trouver la plus grosse dépense
+        max_expense = edited_expenses.loc[edited_expenses["Mensuel"].idxmax()]
+        max_cat = max_expense["Catégorie"]
+        max_poste = max_expense["Poste"]
+        max_val = max_expense["Mensuel"]
+        max_pct = (max_val / total_exp) * 100
 
-    st.header("🎯 Analyse & Coaching")
-    
-    kpi1, kpi2, kpi3 = st.columns(3)
-    
-    kpi1.metric("Revenus Totaux", f"{total_inc_m:,.2f} €")
-    kpi2.metric("Dépenses Totales", f"{total_exp_m:,.2f} €")
-    kpi3.metric("Reste à vivre (Cashflow)", f"{cashflow_m:,.2f} €", delta=f"{'Positif' if cashflow_m >= 0 else 'Négatif'}", delta_color="normal")
+        col_coach1, col_coach2 = st.columns([2, 1])
+        
+        with col_coach1:
+            if cashflow < 0:
+                st.error(f"🚨 **Vous dépensez plus que vous ne gagnez (-{abs(cashflow):.0f} €)**")
+                st.markdown(f"""
+                Votre poste le plus lourd est **{max_poste}** ({max_pct:.1f}% du total).
+                
+                **Conseils d'urgence :**
+                1. Regardez la colonne **'Poids dans le budget'** ci-dessus. Tout ce qui dépasse 10-15% (hors loyer) est une cible.
+                2. Si vos dépenses contraintes (Loyer + Crédits) dépassent 35% de vos revenus, vous êtes en zone de risque.
+                3. Coupez les abonnements inutiles immédiatement.
+                """)
+            else:
+                st.success("✅ **Votre budget est maîtrisé**")
+                st.markdown(f"""
+                Vous avez un excédent de **{cashflow:.0f} €** par mois.
+                C'est excellent ! Même si **{max_poste}** représente {max_pct:.1f}% de vos dépenses, vous arrivez à épargner.
+                
+                **Prochaine étape :** Virez automatiquement ces {cashflow:.0f} € vers un compte d'épargne dès le début du mois.
+                """)
 
-    # --- LE COACH VIRTUEL (Logique du fichier Excel) ---
-    st.write("### 🧠 L'avis du Coach")
-    
-    if cashflow_m < 0:
-        st.error(f"⚠️ **Attention : Trésorerie Négative (-{abs(cashflow_m):.2f} €)**")
-        st.markdown("""
-        Votre budget est en déséquilibre. Voici les actions recommandées :
-        1. **Réduire les frais variables** : Vérifiez les postes 'Loisirs', 'Addiction' ou 'Abonnements' dans le tableau de gauche.
-        2. **Optimiser** : Pouvez-vous renégocier vos contrats (Assurance, Internet) ?
-        3. **Augmenter les revenus** : Envisagez des revenus complémentaires si la réduction des coûts n'est pas suffisante.
-        """)
-    elif cashflow_m == 0:
-        st.warning("⚖️ **Budget à l'équilibre (0 €)**")
-        st.markdown("Vous ne perdez pas d'argent, mais vous n'épargnez pas. Essayez de dégager une petite marge de sécurité pour les imprévus.")
+        with col_coach2:
+            # Petit graphique camembert simplifié
+            fig = px.pie(edited_expenses, values='Mensuel', names='Catégorie', 
+                         title='Où part votre argent ?',
+                         hole=0.4)
+            fig.update_layout(margin=dict(t=30, b=0, l=0, r=0), height=250)
+            st.plotly_chart(fig, use_container_width=True)
+
     else:
-        st.success(f"✅ **Bravo : Capacité d'épargne (+{cashflow_m:.2f} €/mois)**")
-        st.markdown(f"""
-        Votre trésorerie est saine. Vous disposez de **{cashflow_a:,.2f} € par an** pour avancer.
-        **Suggestions pour cet excédent :**
-        * **Épargne de précaution :** Avez-vous 3 à 6 mois de dépenses de côté ?
-        * **Investissement :** Immo, Bourse ou Crypto selon votre profil de risque.
-        * **Remboursement anticipé :** Avez-vous des crédits à taux élevé à solder ?
-        """)
-
-    # --- VISUALISATION ---
-    st.markdown("---")
-    viz_col1, viz_col2 = st.columns(2)
-    
-    with viz_col1:
-        st.subheader("Répartition des Dépenses")
-        if total_exp_m > 0:
-            # Regrouper par Catégorie pour le graphique
-            fig_pie = px.pie(edited_expenses, values='Mensuel', names='Catégorie', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-            st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.info("Remplissez vos dépenses pour voir le graphique.")
-
-    with viz_col2:
-        st.subheader("Jauge de Santé Financière")
-        # Simple bar chart comparatif
-        data_bar = pd.DataFrame({
-            "Type": ["Dépenses", "Revenus"],
-            "Montant": [total_exp_m, total_inc_m]
-        })
-        fig_bar = px.bar(data_bar, x="Montant", y="Type", orientation='h', color="Type", 
-                         color_discrete_map={"Dépenses": "#EF553B", "Revenus": "#00CC96"})
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.info("👈 Commencez par entrer un montant dans les dépenses à gauche.")
 
     # --- EXPORT ---
     st.markdown("---")
-    st.subheader("💾 Sauvegarder votre travail")
-    st.markdown("Téléchargez votre budget pour le conserver sur votre ordinateur.")
-    
-    csv_data = convert_df_to_csv(edited_income, edited_expenses, cashflow_m, cashflow_a)
-    
-    st.download_button(
-        label="📥 Télécharger mon Budget (CSV)",
-        data=csv_data,
-        file_name="mon_budget_simulateur.csv",
-        mime="text/csv",
-    )
+    csv_data = convert_df_to_csv(edited_income, edited_expenses, cashflow, cashflow*12)
+    st.download_button("📥 Télécharger mon analyse (CSV)", data=csv_data, file_name="mon_analyse_budget.csv", mime="text/csv")
 
 if __name__ == "__main__":
     main()
